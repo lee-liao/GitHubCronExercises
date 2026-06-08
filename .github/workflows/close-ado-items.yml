@@ -1,0 +1,83 @@
+name: Close Azure DevOps Work Items
+
+on:
+  workflow_dispatch:
+    inputs:
+      story_id:
+        description: 'User Story ID to close'
+        required: true
+        type: string
+      task_id:
+        description: 'Task ID to close'
+        required: true
+        type: string
+      work_date:
+        description: 'Date of the work items (YYYY-MM-DD)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  close-work-items:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Close User Story
+        id: close_story
+        env:
+          ADO_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
+        run: |
+          AUTH=$(echo -n ":$ADO_PAT" | base64 -w 0)
+          STORY_ID="${{ github.event.inputs.story_id }}"
+          RESPONSE=$(curl -s -X PATCH \
+            "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/$STORY_ID?api-version=7.1" \
+            -H "Authorization: Basic $AUTH" \
+            -H "Content-Type: application/json-patch+json" \
+            -d '[{"op":"add","path":"/fields/System.State","value":"Closed"}]')
+          echo "Close Story Response: $RESPONSE"
+          STORY_STATE=$(echo "$RESPONSE" | jq -r '.fields["System.State"]')
+          echo "STORY_STATE=$STORY_STATE" >> "$GITHUB_OUTPUT"
+
+      - name: Close Task
+        id: close_task
+        env:
+          ADO_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
+        run: |
+          AUTH=$(echo -n ":$ADO_PAT" | base64 -w 0)
+          TASK_ID="${{ github.event.inputs.task_id }}"
+          RESPONSE=$(curl -s -X PATCH \
+            "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/$TASK_ID?api-version=7.1" \
+            -H "Authorization: Basic $AUTH" \
+            -H "Content-Type: application/json-patch+json" \
+            -d '[{"op":"add","path":"/fields/System.State","value":"Closed"}]')
+          echo "Close Task Response: $RESPONSE"
+          TASK_STATE=$(echo "$RESPONSE" | jq -r '.fields["System.State"]')
+          echo "TASK_STATE=$TASK_STATE" >> "$GITHUB_OUTPUT"
+
+      - name: Update README on main and commit
+        run: |
+          STORY_ID="${{ github.event.inputs.story_id }}"
+          STORY_STATE="${{ steps.close_story.outputs.STORY_STATE }}"
+          TASK_ID="${{ steps.close_task.outputs.TASK_ID }}"
+          TASK_STATE="${{ steps.close_task.outputs.TASK_STATE }}"
+          WORK_DATE="${{ github.event.inputs.work_date }}"
+          printf '\nWork Items Closed (%s):\n- User Story ID: %s, State: %s\n- Task ID: %s, State: %s\n' \
+            "$WORK_DATE" "$STORY_ID" "$STORY_STATE" "$TASK_ID" "$TASK_STATE" >> README.md
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add README.md
+          git diff --cached --quiet || git commit -m "Update README: ADO work items closed for $WORK_DATE"
+          git push origin main
+
+      - name: Print Summary
+        run: |
+          echo "=== CLOSED WORK ITEMS ==="
+          echo "User Story ID: ${{ github.event.inputs.story_id }}, State: ${{ steps.close_story.outputs.STORY_STATE }}"
+          echo "Task ID: ${{ github.event.inputs.task_id }}, State: ${{ steps.close_task.outputs.TASK_STATE }}"
+          echo "========================="
