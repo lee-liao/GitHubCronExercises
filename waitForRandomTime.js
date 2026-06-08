@@ -1,5 +1,5 @@
 function sleepRandom() {
-  const minutes = Math.floor(Math.random() * 31);   // 0–30
+  const minutes = Math.floor(Math.random() * 2);   // 0–30
   const seconds = Math.floor(Math.random() * 60);   // 0–59
 
   const totalMs = (minutes * 60 + seconds) * 1000;
