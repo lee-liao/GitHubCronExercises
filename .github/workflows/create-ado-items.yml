@@ -14,6 +14,9 @@ on:
         type: string
         default: 'claude/fervent-rubin-oggzg0'
 
+permissions:
+  contents: write
+
 jobs:
   create-work-items:
     runs-on: ubuntu-latest
