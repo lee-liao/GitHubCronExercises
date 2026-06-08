@@ -64,7 +64,7 @@ jobs:
         run: |
           STORY_ID="${{ github.event.inputs.story_id }}"
           STORY_STATE="${{ steps.close_story.outputs.STORY_STATE }}"
-          TASK_ID="${{ steps.close_task.outputs.TASK_ID }}"
+          TASK_ID="${{ github.event.inputs.task_id }}"
           TASK_STATE="${{ steps.close_task.outputs.TASK_STATE }}"
           WORK_DATE="${{ github.event.inputs.work_date }}"
           printf '\nWork Items Closed (%s):\n- User Story ID: %s, State: %s\n- Task ID: %s, State: %s\n' \
