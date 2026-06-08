@@ -1,0 +1,136 @@
+name: Create Azure DevOps Work Items
+
+on:
+  workflow_dispatch:
+    inputs:
+      work_date:
+        description: 'Date for the work items (YYYY-MM-DD)'
+        required: true
+        type: string
+        default: '2026-06-08'
+      target_branch:
+        description: 'Branch to commit README update to'
+        required: true
+        type: string
+        default: 'claude/fervent-rubin-oggzg0'
+
+jobs:
+  create-work-items:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.target_branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create User Story
+        id: create_story
+        env:
+          ADO_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
+        run: |
+          AUTH=$(echo -n ":$ADO_PAT" | base64 -w 0)
+
+          RESPONSE=$(curl -s -X POST \
+            "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/%24User%20Story?api-version=7.1" \
+            -H "Authorization: Basic $AUTH" \
+            -H "Content-Type: application/json-patch+json" \
+            -d '[
+              {"op":"add","path":"/fields/System.Title","value":"provide contry list of American"},
+              {"op":"add","path":"/fields/System.Description","value":"provide contry list of American"},
+              {"op":"add","path":"/relations/-","value":{"rel":"System.LinkTypes.Hierarchy-Reverse","url":"https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/92","attributes":{"comment":""}}}
+            ]')
+
+          echo "Story Response: $RESPONSE"
+          STORY_ID=$(echo "$RESPONSE" | jq -r '.id')
+          STORY_STATE=$(echo "$RESPONSE" | jq -r '.fields["System.State"]')
+          echo "STORY_ID=$STORY_ID" >> "$GITHUB_OUTPUT"
+          echo "STORY_STATE=$STORY_STATE" >> "$GITHUB_OUTPUT"
+
+      - name: Create Task
+        id: create_task
+        env:
+          ADO_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
+        run: |
+          AUTH=$(echo -n ":$ADO_PAT" | base64 -w 0)
+          STORY_ID="${{ steps.create_story.outputs.STORY_ID }}"
+          STORY_URL="https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/$STORY_ID"
+          DESCRIPTION="Canada ,United States of America ,Mexico ,Belize ,Costa Rica ,El Salvador ,Guatemala ,Honduras ,Nicaragua ,Panama ,Antigua and Barbuda ,Bahamas ,Barbados ,Cuba ,Dominica ,Dominican Republic ,Grenada ,Haiti ,Jamaica ,Saint Kitts and Nevis ,Saint Lucia ,Saint Vincent and the Grenadines ,Trinidad and Tobago ,Argentina ,Bolivia ,Brazil ,Chile ,Colombia ,Ecuador ,Guyana ,Paraguay ,Peru ,Suriname ,Uruguay ,Venezuela"
+
+          BODY=$(jq -n \
+            --arg desc "$DESCRIPTION" \
+            --arg storyUrl "$STORY_URL" \
+            '[
+              {"op":"add","path":"/fields/System.Title","value":"found the contry list of American"},
+              {"op":"add","path":"/fields/System.Description","value":$desc},
+              {"op":"add","path":"/relations/-","value":{"rel":"System.LinkTypes.Hierarchy-Reverse","url":$storyUrl,"attributes":{"comment":""}}}
+            ]')
+
+          RESPONSE=$(curl -s -X POST \
+            "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/%24Task?api-version=7.1" \
+            -H "Authorization: Basic $AUTH" \
+            -H "Content-Type: application/json-patch+json" \
+            -d "$BODY")
+
+          echo "Task Response: $RESPONSE"
+          TASK_ID=$(echo "$RESPONSE" | jq -r '.id')
+          TASK_STATE=$(echo "$RESPONSE" | jq -r '.fields["System.State"]')
+          echo "TASK_ID=$TASK_ID" >> "$GITHUB_OUTPUT"
+          echo "TASK_STATE=$TASK_STATE" >> "$GITHUB_OUTPUT"
+
+      - name: Update README
+        run: |
+          STORY_ID="${{ steps.create_story.outputs.STORY_ID }}"
+          STORY_STATE="${{ steps.create_story.outputs.STORY_STATE }}"
+          TASK_ID="${{ steps.create_task.outputs.TASK_ID }}"
+          TASK_STATE="${{ steps.create_task.outputs.TASK_STATE }}"
+          WORK_DATE="${{ github.event.inputs.work_date }}"
+
+          # Append created IDs below the matching date block
+          python3 - <<'PYEOF'
+import re, os, sys
+story_id  = os.environ['STORY_ID']
+story_st  = os.environ['STORY_STATE']
+task_id   = os.environ['TASK_ID']
+task_st   = os.environ['TASK_STATE']
+work_date = os.environ['WORK_DATE']
+
+with open('README.md', 'r') as f:
+    content = f.read()
+
+append_block = f"\nCreated Work Items ({work_date}):\n- User Story ID: {story_id}, State: {story_st}\n- Task ID: {task_id}, State: {task_st}\n"
+
+# Insert after the date block (after the last task description line for that date)
+date_pattern = rf"(Date: {re.escape(work_date)}.*?(?=\nDate: |\Z))"
+match = re.search(date_pattern, content, re.DOTALL)
+if match and 'Created Work Items' not in match.group(0):
+    insert_pos = match.end()
+    content = content[:insert_pos] + append_block + content[insert_pos:]
+    with open('README.md', 'w') as f:
+        f.write(content)
+    print('README.md updated')
+else:
+    print('Block already updated or date not found')
+PYEOF
+        env:
+          STORY_ID: ${{ steps.create_story.outputs.STORY_ID }}
+          STORY_STATE: ${{ steps.create_story.outputs.STORY_STATE }}
+          TASK_ID: ${{ steps.create_task.outputs.TASK_ID }}
+          TASK_STATE: ${{ steps.create_task.outputs.TASK_STATE }}
+          WORK_DATE: ${{ github.event.inputs.work_date }}
+
+      - name: Commit README update
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add README.md
+          git diff --cached --quiet || git commit -m "Record created ADO work items for ${{ github.event.inputs.work_date }}"
+          git push origin ${{ github.event.inputs.target_branch }}
+
+      - name: Print Summary
+        run: |
+          echo "=== CREATED WORK ITEMS ==="
+          echo "User Story ID: ${{ steps.create_story.outputs.STORY_ID }}"
+          echo "User Story State: ${{ steps.create_story.outputs.STORY_STATE }}"
+          echo "Task ID: ${{ steps.create_task.outputs.TASK_ID }}"
+          echo "Task State: ${{ steps.create_task.outputs.TASK_STATE }}"
+          echo "========================="
