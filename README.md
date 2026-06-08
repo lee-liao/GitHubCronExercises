@@ -1,7 +1,7 @@
 # claudeRoutineExercises
 claude Routine Exercises
 
-The document is for claude to read and doing routine work on schedule.
+The document is for claude to read and doing routine work on schedule.  
 Date: 2026-06-08
 - new User Story:
   title - provide contry list of American
