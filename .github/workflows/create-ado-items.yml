@@ -7,12 +7,12 @@ on:
         description: 'Date for the work items (YYYY-MM-DD)'
         required: true
         type: string
-        default: '2026-06-08'
+        default: '2026-06-09'
       target_branch:
         description: 'Branch to commit README update to'
         required: true
         type: string
-        default: 'claude/fervent-rubin-oggzg0'
+        default: 'main'
 
 permissions:
   contents: write
@@ -26,6 +26,14 @@ jobs:
           ref: ${{ github.event.inputs.target_branch }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Wait for random time
+        run: node waitForRandomTime.js
+
       - name: Create User Story
         id: create_story
         env:
@@ -36,7 +44,7 @@ jobs:
             "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/%24User%20Story?api-version=7.1" \
             -H "Authorization: Basic $AUTH" \
             -H "Content-Type: application/json-patch+json" \
-            -d '[{"op":"add","path":"/fields/System.Title","value":"provide contry list of American"},{"op":"add","path":"/fields/System.Description","value":"provide contry list of American"},{"op":"add","path":"/relations/-","value":{"rel":"System.LinkTypes.Hierarchy-Reverse","url":"https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/92","attributes":{"comment":""}}}]')
+            -d '[{"op":"add","path":"/fields/System.Title","value":"provide contry list of American"},{"op":"add","path":"/fields/System.Description","value":"provide contry list of American"},{"op":"add","path":"/fields/System.State","value":"Active"},{"op":"add","path":"/fields/System.AssignedTo","value":"yuhuang.li.cloudalake@gmail.com"},{"op":"add","path":"/relations/-","value":{"rel":"System.LinkTypes.Hierarchy-Reverse","url":"https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/92","attributes":{"comment":""}}}]')
           echo "Story Response: $RESPONSE"
           STORY_ID=$(echo "$RESPONSE" | jq -r '.id')
           STORY_STATE=$(echo "$RESPONSE" | jq -r '.fields["System.State"]')
@@ -52,7 +60,7 @@ jobs:
           STORY_ID="${{ steps.create_story.outputs.STORY_ID }}"
           STORY_URL="https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/$STORY_ID"
           DESCRIPTION="Canada ,United States of America ,Mexico ,Belize ,Costa Rica ,El Salvador ,Guatemala ,Honduras ,Nicaragua ,Panama ,Antigua and Barbuda ,Bahamas ,Barbados ,Cuba ,Dominica ,Dominican Republic ,Grenada ,Haiti ,Jamaica ,Saint Kitts and Nevis ,Saint Lucia ,Saint Vincent and the Grenadines ,Trinidad and Tobago ,Argentina ,Bolivia ,Brazil ,Chile ,Colombia ,Ecuador ,Guyana ,Paraguay ,Peru ,Suriname ,Uruguay ,Venezuela"
-          BODY=$(jq -n --arg desc "$DESCRIPTION" --arg url "$STORY_URL" '[{"op":"add","path":"/fields/System.Title","value":"found the contry list of American"},{"op":"add","path":"/fields/System.Description","value":$desc},{"op":"add","path":"/relations/-","value":{"rel":"System.LinkTypes.Hierarchy-Reverse","url":$url,"attributes":{"comment":""}}}]')
+          BODY=$(jq -n --arg desc "$DESCRIPTION" --arg url "$STORY_URL" '[{"op":"add","path":"/fields/System.Title","value":"found the contry list of American"},{"op":"add","path":"/fields/System.Description","value":$desc},{"op":"add","path":"/fields/System.State","value":"Active"},{"op":"add","path":"/fields/System.AssignedTo","value":"yuhuang.li.cloudalake@gmail.com"},{"op":"add","path":"/relations/-","value":{"rel":"System.LinkTypes.Hierarchy-Reverse","url":$url,"attributes":{"comment":""}}}]')
           RESPONSE=$(curl -s -X POST \
             "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/%24Task?api-version=7.1" \
             -H "Authorization: Basic $AUTH" \
