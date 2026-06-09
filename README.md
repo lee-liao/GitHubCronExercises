@@ -25,3 +25,7 @@ Date: 2026-06-10
   title - make table "Contry"  
   descripiton - make table "Contry" with data provided yesterday, for American at this moment.  
   assiged to - yuhuang.li.cloudalake@gmail.com  
+
+Created Work Items (2026-06-09):
+- User Story ID: 97, State: Active
+- Task ID: null, State: null
