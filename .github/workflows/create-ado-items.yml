@@ -13,6 +13,11 @@ on:
         required: true
         type: string
         default: 'main'
+      existing_story_id:
+        description: 'Existing User Story ID (skip story creation if provided)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -34,22 +39,33 @@ jobs:
       - name: Wait for random time
         run: node waitForRandomTime.js
 
-      - name: Create User Story
+      - name: Create or reuse User Story
         id: create_story
         env:
           ADO_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
         run: |
           AUTH=$(echo -n ":$ADO_PAT" | base64 -w 0)
-          RESPONSE=$(curl -s -X POST \
-            "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/%24User%20Story?api-version=7.1" \
-            -H "Authorization: Basic $AUTH" \
-            -H "Content-Type: application/json-patch+json" \
-            -d '[{"op":"add","path":"/fields/System.Title","value":"provide contry list of American"},{"op":"add","path":"/fields/System.Description","value":"provide contry list of American"},{"op":"add","path":"/fields/System.State","value":"Active"},{"op":"add","path":"/fields/System.AssignedTo","value":"yuhuang.li.cloudalake@gmail.com"},{"op":"add","path":"/relations/-","value":{"rel":"System.LinkTypes.Hierarchy-Reverse","url":"https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/92","attributes":{"comment":""}}}]')
-          echo "Story Response: $RESPONSE"
-          STORY_ID=$(echo "$RESPONSE" | jq -r '.id')
-          STORY_STATE=$(echo "$RESPONSE" | jq -r '.fields["System.State"]')
-          echo "STORY_ID=$STORY_ID" >> "$GITHUB_OUTPUT"
-          echo "STORY_STATE=$STORY_STATE" >> "$GITHUB_OUTPUT"
+          EXISTING_ID="${{ github.event.inputs.existing_story_id }}"
+          if [ -n "$EXISTING_ID" ]; then
+            echo "Reusing existing story ID: $EXISTING_ID"
+            RESPONSE=$(curl -s \
+              "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/$EXISTING_ID?api-version=7.1" \
+              -H "Authorization: Basic $AUTH")
+            STORY_STATE=$(echo "$RESPONSE" | jq -r '.fields["System.State"]')
+            echo "STORY_ID=$EXISTING_ID" >> "$GITHUB_OUTPUT"
+            echo "STORY_STATE=$STORY_STATE" >> "$GITHUB_OUTPUT"
+          else
+            RESPONSE=$(curl -s -X POST \
+              "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/%24User%20Story?api-version=7.1" \
+              -H "Authorization: Basic $AUTH" \
+              -H "Content-Type: application/json-patch+json" \
+              -d '[{"op":"add","path":"/fields/System.Title","value":"provide contry list of American"},{"op":"add","path":"/fields/System.Description","value":"provide contry list of American"},{"op":"add","path":"/fields/System.State","value":"Active"},{"op":"add","path":"/fields/System.AssignedTo","value":"yuhuang.li.cloudalake@gmail.com"},{"op":"add","path":"/relations/-","value":{"rel":"System.LinkTypes.Hierarchy-Reverse","url":"https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/92","attributes":{"comment":""}}}]')
+            echo "Story Response: $RESPONSE"
+            STORY_ID=$(echo "$RESPONSE" | jq -r '.id')
+            STORY_STATE=$(echo "$RESPONSE" | jq -r '.fields["System.State"]')
+            echo "STORY_ID=$STORY_ID" >> "$GITHUB_OUTPUT"
+            echo "STORY_STATE=$STORY_STATE" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Create Task
         id: create_task
@@ -60,15 +76,34 @@ jobs:
           STORY_ID="${{ steps.create_story.outputs.STORY_ID }}"
           STORY_URL="https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/$STORY_ID"
           DESCRIPTION="Canada ,United States of America ,Mexico ,Belize ,Costa Rica ,El Salvador ,Guatemala ,Honduras ,Nicaragua ,Panama ,Antigua and Barbuda ,Bahamas ,Barbados ,Cuba ,Dominica ,Dominican Republic ,Grenada ,Haiti ,Jamaica ,Saint Kitts and Nevis ,Saint Lucia ,Saint Vincent and the Grenadines ,Trinidad and Tobago ,Argentina ,Bolivia ,Brazil ,Chile ,Colombia ,Ecuador ,Guyana ,Paraguay ,Peru ,Suriname ,Uruguay ,Venezuela"
-          BODY=$(jq -n --arg desc "$DESCRIPTION" --arg url "$STORY_URL" '[{"op":"add","path":"/fields/System.Title","value":"found the contry list of American"},{"op":"add","path":"/fields/System.Description","value":$desc},{"op":"add","path":"/fields/System.State","value":"Active"},{"op":"add","path":"/fields/System.AssignedTo","value":"yuhuang.li.cloudalake@gmail.com"},{"op":"add","path":"/relations/-","value":{"rel":"System.LinkTypes.Hierarchy-Reverse","url":$url,"attributes":{"comment":""}}}]')
+          BODY=$(jq -n --arg desc "$DESCRIPTION" --arg url "$STORY_URL" '[{"op":"add","path":"/fields/System.Title","value":"found the contry list of American"},{"op":"add","path":"/fields/System.Description","value":$desc},{"op":"add","path":"/fields/System.AssignedTo","value":"yuhuang.li.cloudalake@gmail.com"},{"op":"add","path":"/relations/-","value":{"rel":"System.LinkTypes.Hierarchy-Reverse","url":$url,"attributes":{"comment":""}}}]')
           RESPONSE=$(curl -s -X POST \
             "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/%24Task?api-version=7.1" \
             -H "Authorization: Basic $AUTH" \
             -H "Content-Type: application/json-patch+json" \
             -d "$BODY")
-          echo "Task Response: $RESPONSE"
+          echo "Task Create Response: $RESPONSE"
           TASK_ID=$(echo "$RESPONSE" | jq -r '.id')
-          TASK_STATE=$(echo "$RESPONSE" | jq -r '.fields["System.State"]')
+          if [ "$TASK_ID" = "null" ]; then
+            echo "Task creation failed"
+            echo "TASK_ID=null" >> "$GITHUB_OUTPUT"
+            echo "TASK_STATE=error" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          # Try to set state: Active first, then In Progress
+          for STATE in "Active" "In Progress"; do
+            PATCH=$(curl -s -X PATCH \
+              "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/$TASK_ID?api-version=7.1" \
+              -H "Authorization: Basic $AUTH" \
+              -H "Content-Type: application/json-patch+json" \
+              -d "[{\"op\":\"add\",\"path\":\"/fields/System.State\",\"value\":\"$STATE\"}]")
+            TASK_STATE=$(echo "$PATCH" | jq -r '.fields["System.State"]')
+            if [ "$TASK_STATE" != "null" ] && ! echo "$PATCH" | jq -e '.message' > /dev/null 2>&1; then
+              echo "Task state set to: $TASK_STATE"
+              break
+            fi
+            echo "State '$STATE' not valid, trying next..."
+          done
           echo "TASK_ID=$TASK_ID" >> "$GITHUB_OUTPUT"
           echo "TASK_STATE=$TASK_STATE" >> "$GITHUB_OUTPUT"
 
