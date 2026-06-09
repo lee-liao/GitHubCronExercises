@@ -28,6 +28,14 @@ jobs:
           ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Wait for random time
+        run: node waitForRandomTime.js
+
       - name: Close User Story
         id: close_story
         env:
@@ -60,19 +68,51 @@ jobs:
           TASK_STATE=$(echo "$RESPONSE" | jq -r '.fields["System.State"]')
           echo "TASK_STATE=$TASK_STATE" >> "$GITHUB_OUTPUT"
 
-      - name: Update README on main and commit
+      - name: Update README table and commit
+        env:
+          STORY_ID: ${{ github.event.inputs.story_id }}
+          STORY_STATE: ${{ steps.close_story.outputs.STORY_STATE }}
+          TASK_ID: ${{ github.event.inputs.task_id }}
+          TASK_STATE: ${{ steps.close_task.outputs.TASK_STATE }}
+          WORK_DATE: ${{ github.event.inputs.work_date }}
         run: |
-          STORY_ID="${{ github.event.inputs.story_id }}"
-          STORY_STATE="${{ steps.close_story.outputs.STORY_STATE }}"
-          TASK_ID="${{ github.event.inputs.task_id }}"
-          TASK_STATE="${{ steps.close_task.outputs.TASK_STATE }}"
-          WORK_DATE="${{ github.event.inputs.work_date }}"
-          printf '\nWork Items Closed (%s):\n- User Story ID: %s, State: %s\n- Task ID: %s, State: %s\n' \
-            "$WORK_DATE" "$STORY_ID" "$STORY_STATE" "$TASK_ID" "$TASK_STATE" >> README.md
+          python3 - <<'PYEOF'
+          import os
+
+          story_id  = os.environ["STORY_ID"]
+          task_id   = os.environ["TASK_ID"]
+          story_state = os.environ.get("STORY_STATE") or "Closed"
+          task_state  = os.environ.get("TASK_STATE")  or "Closed"
+
+          with open("README.md", "r") as f:
+              lines = f.readlines()
+
+          new_lines = []
+          for line in lines:
+              if line.startswith("|") and "|" in line:
+                  parts = line.split("|")
+                  # Table columns (split by |): ['', Date, Type, Title, Desc, Assigned, Status, ID, ParentID, '']
+                  # Count from right: -1=empty, -2=ParentID, -3=ID, -4=Status
+                  if len(parts) >= 9:
+                      row_id = parts[-3].strip()
+                      if row_id == story_id:
+                          parts[-4] = f" {story_state} "
+                          line = "|".join(parts)
+                      elif row_id == task_id:
+                          parts[-4] = f" {task_state} "
+                          line = "|".join(parts)
+              new_lines.append(line)
+
+          with open("README.md", "w") as f:
+              f.writelines(new_lines)
+
+          print(f"README updated: Story {story_id} -> {story_state}, Task {task_id} -> {task_state}")
+          PYEOF
+
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
           git add README.md
-          git diff --cached --quiet || git commit -m "Update README: ADO work items closed for $WORK_DATE"
+          git diff --cached --quiet || git commit -m "Close ADO work items for $WORK_DATE (Story $STORY_ID, Task $TASK_ID)"
           git push origin main
 
       - name: Print Summary
