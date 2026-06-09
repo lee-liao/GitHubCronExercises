@@ -90,20 +90,13 @@ jobs:
             echo "TASK_STATE=error" >> "$GITHUB_OUTPUT"
             exit 1
           fi
-          # Try to set state: Active first, then In Progress
-          for STATE in "Active" "In Progress"; do
-            PATCH=$(curl -s -X PATCH \
-              "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/$TASK_ID?api-version=7.1" \
-              -H "Authorization: Basic $AUTH" \
-              -H "Content-Type: application/json-patch+json" \
-              -d "[{\"op\":\"add\",\"path\":\"/fields/System.State\",\"value\":\"$STATE\"}]")
-            TASK_STATE=$(echo "$PATCH" | jq -r '.fields["System.State"]')
-            if [ "$TASK_STATE" != "null" ] && ! echo "$PATCH" | jq -e '.message' > /dev/null 2>&1; then
-              echo "Task state set to: $TASK_STATE"
-              break
-            fi
-            echo "State '$STATE' not valid, trying next..."
-          done
+          PATCH=$(curl -s -X PATCH \
+            "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/$TASK_ID?api-version=7.1" \
+            -H "Authorization: Basic $AUTH" \
+            -H "Content-Type: application/json-patch+json" \
+            -d '[{"op":"add","path":"/fields/System.State","value":"Active"}]')
+          TASK_STATE=$(echo "$PATCH" | jq -r '.fields["System.State"]')
+          echo "Task state set to: $TASK_STATE"
           echo "TASK_ID=$TASK_ID" >> "$GITHUB_OUTPUT"
           echo "TASK_STATE=$TASK_STATE" >> "$GITHUB_OUTPUT"
 
