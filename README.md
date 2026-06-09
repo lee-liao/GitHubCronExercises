@@ -1,35 +1,13 @@
 # claudeRoutineExercises
-claude Routine Exercises  
+claude Routine Exercises
 
-The document is for claude to read and doing routine work on schedule.  
-Date: 2026-06-09
-- new User Story:  
-  title - provide contry list of American  
-  description - provide contry list of American  
-  assiged to - yuhuang.li.cloudalake@gmail.com  
-  
-- new Task:
-  parent - the above User Story ID  
-  title - found the contry list of American  
-  descripiton - Canada ,United States of America ,Mexico ,Belize ,Costa Rica ,El Salvador ,Guatemala ,Honduras ,Nicaragua ,Panama ,Antigua and Barbuda ,Bahamas ,Barbados ,Cuba ,Dominica ,Dominican Republic ,Grenada ,Haiti ,Jamaica ,Saint Kitts and Nevis ,Saint Lucia ,Saint Vincent and the Grenadines ,Trinidad and Tobago ,Argentina ,Bolivia ,Brazil ,Chile ,Colombia ,Ecuador ,Guyana ,Paraguay ,Peru ,Suriname ,Uruguay ,Venezuela   
-  assiged to - yuhuang.li.cloudalake@gmail.com  
+The document is for claude to read and do routine Azure DevOps work item management on schedule.
 
-Date: 2026-06-10  
-- new User Story:  
-  title - make table of Contry with continent in PBIP project  
-  description - make table of Contry with continent in PBIP project  
-  assiged to - yuhuang.li.cloudalake@gmail.com  
-  
-- new Task:
-  parent - the above User Story ID  
-  title - make table "Contry"  
-  descripiton - make table "Contry" with data provided yesterday, for American at this moment.  
-  assiged to - yuhuang.li.cloudalake@gmail.com  
+## Work Items
 
-Created Work Items (2026-06-09):
-- User Story ID: 97, State: Active
-- Task ID: null, State: null
-
-Created Work Items (2026-06-09):
-- User Story ID: 97, State: Active
-- Task ID: 98, State: Active
+| Date | Type | Title | Description | Assigned To | Status | ID | Parent ID |
+|------|------|-------|-------------|-------------|--------|----|-----------|
+| 2026-06-09 | User Story | provide contry list of American | provide contry list of American | yuhuang.li.cloudalake@gmail.com | Active | 97 | |
+| 2026-06-09 | Task | found the contry list of American | Canada ,United States of America ,Mexico ,Belize ,Costa Rica ,El Salvador ,Guatemala ,Honduras ,Nicaragua ,Panama ,Antigua and Barbuda ,Bahamas ,Barbados ,Cuba ,Dominica ,Dominican Republic ,Grenada ,Haiti ,Jamaica ,Saint Kitts and Nevis ,Saint Lucia ,Saint Vincent and the Grenadines ,Trinidad and Tobago ,Argentina ,Bolivia ,Brazil ,Chile ,Colombia ,Ecuador ,Guyana ,Paraguay ,Peru ,Suriname ,Uruguay ,Venezuela | yuhuang.li.cloudalake@gmail.com | Active | 98 | 97 |
+| 2026-06-10 | User Story | make table of Contry with continent in PBIP project | make table of Contry with continent in PBIP project | yuhuang.li.cloudalake@gmail.com | pending | | |
+| 2026-06-10 | Task | make table "Contry" | make table "Contry" with data provided yesterday, for American at this moment. | yuhuang.li.cloudalake@gmail.com | pending | | |

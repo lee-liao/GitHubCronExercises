@@ -4,17 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       work_date:
-        description: 'Date for the work items (YYYY-MM-DD)'
-        required: true
-        type: string
-        default: '2026-06-09'
-      target_branch:
-        description: 'Branch to commit README update to'
-        required: true
-        type: string
-        default: 'main'
-      existing_story_id:
-        description: 'Existing User Story ID (skip story creation if provided)'
+        description: 'Date (YYYY-MM-DD). Leave blank to use today (UTC).'
         required: false
         type: string
         default: ''
@@ -28,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.target_branch }}
+          ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Node.js
@@ -39,87 +29,24 @@ jobs:
       - name: Wait for random time
         run: node waitForRandomTime.js
 
-      - name: Create or reuse User Story
-        id: create_story
+      - name: Resolve work date
+        id: date
+        run: |
+          DATE="${{ github.event.inputs.work_date }}"
+          if [ -z "$DATE" ]; then DATE=$(date -u +%Y-%m-%d); fi
+          echo "value=$DATE" >> "$GITHUB_OUTPUT"
+          echo "Work date: $DATE"
+
+      - name: Create work items and update README
         env:
           ADO_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
-        run: |
-          AUTH=$(echo -n ":$ADO_PAT" | base64 -w 0)
-          EXISTING_ID="${{ github.event.inputs.existing_story_id }}"
-          if [ -n "$EXISTING_ID" ]; then
-            echo "Reusing existing story ID: $EXISTING_ID"
-            RESPONSE=$(curl -s \
-              "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/$EXISTING_ID?api-version=7.1" \
-              -H "Authorization: Basic $AUTH")
-            STORY_STATE=$(echo "$RESPONSE" | jq -r '.fields["System.State"]')
-            echo "STORY_ID=$EXISTING_ID" >> "$GITHUB_OUTPUT"
-            echo "STORY_STATE=$STORY_STATE" >> "$GITHUB_OUTPUT"
-          else
-            RESPONSE=$(curl -s -X POST \
-              "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/%24User%20Story?api-version=7.1" \
-              -H "Authorization: Basic $AUTH" \
-              -H "Content-Type: application/json-patch+json" \
-              -d '[{"op":"add","path":"/fields/System.Title","value":"provide contry list of American"},{"op":"add","path":"/fields/System.Description","value":"provide contry list of American"},{"op":"add","path":"/fields/System.State","value":"Active"},{"op":"add","path":"/fields/System.AssignedTo","value":"yuhuang.li.cloudalake@gmail.com"},{"op":"add","path":"/relations/-","value":{"rel":"System.LinkTypes.Hierarchy-Reverse","url":"https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/92","attributes":{"comment":""}}}]')
-            echo "Story Response: $RESPONSE"
-            STORY_ID=$(echo "$RESPONSE" | jq -r '.id')
-            STORY_STATE=$(echo "$RESPONSE" | jq -r '.fields["System.State"]')
-            echo "STORY_ID=$STORY_ID" >> "$GITHUB_OUTPUT"
-            echo "STORY_STATE=$STORY_STATE" >> "$GITHUB_OUTPUT"
-          fi
+          WORK_DATE: ${{ steps.date.outputs.value }}
+        run: python3 scripts/manage_workitems.py
 
-      - name: Create Task
-        id: create_task
-        env:
-          ADO_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
+      - name: Commit and push README
         run: |
-          AUTH=$(echo -n ":$ADO_PAT" | base64 -w 0)
-          STORY_ID="${{ steps.create_story.outputs.STORY_ID }}"
-          STORY_URL="https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/$STORY_ID"
-          DESCRIPTION="Canada ,United States of America ,Mexico ,Belize ,Costa Rica ,El Salvador ,Guatemala ,Honduras ,Nicaragua ,Panama ,Antigua and Barbuda ,Bahamas ,Barbados ,Cuba ,Dominica ,Dominican Republic ,Grenada ,Haiti ,Jamaica ,Saint Kitts and Nevis ,Saint Lucia ,Saint Vincent and the Grenadines ,Trinidad and Tobago ,Argentina ,Bolivia ,Brazil ,Chile ,Colombia ,Ecuador ,Guyana ,Paraguay ,Peru ,Suriname ,Uruguay ,Venezuela"
-          BODY=$(jq -n --arg desc "$DESCRIPTION" --arg url "$STORY_URL" '[{"op":"add","path":"/fields/System.Title","value":"found the contry list of American"},{"op":"add","path":"/fields/System.Description","value":$desc},{"op":"add","path":"/fields/System.AssignedTo","value":"yuhuang.li.cloudalake@gmail.com"},{"op":"add","path":"/relations/-","value":{"rel":"System.LinkTypes.Hierarchy-Reverse","url":$url,"attributes":{"comment":""}}}]')
-          RESPONSE=$(curl -s -X POST \
-            "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/%24Task?api-version=7.1" \
-            -H "Authorization: Basic $AUTH" \
-            -H "Content-Type: application/json-patch+json" \
-            -d "$BODY")
-          echo "Task Create Response: $RESPONSE"
-          TASK_ID=$(echo "$RESPONSE" | jq -r '.id')
-          if [ "$TASK_ID" = "null" ]; then
-            echo "Task creation failed"
-            echo "TASK_ID=null" >> "$GITHUB_OUTPUT"
-            echo "TASK_STATE=error" >> "$GITHUB_OUTPUT"
-            exit 1
-          fi
-          PATCH=$(curl -s -X PATCH \
-            "https://dev.azure.com/cubeforest3003/powerBI-demo/_apis/wit/workitems/$TASK_ID?api-version=7.1" \
-            -H "Authorization: Basic $AUTH" \
-            -H "Content-Type: application/json-patch+json" \
-            -d '[{"op":"add","path":"/fields/System.State","value":"Active"}]')
-          TASK_STATE=$(echo "$PATCH" | jq -r '.fields["System.State"]')
-          echo "Task state set to: $TASK_STATE"
-          echo "TASK_ID=$TASK_ID" >> "$GITHUB_OUTPUT"
-          echo "TASK_STATE=$TASK_STATE" >> "$GITHUB_OUTPUT"
-
-      - name: Update README and commit
-        run: |
-          STORY_ID="${{ steps.create_story.outputs.STORY_ID }}"
-          STORY_STATE="${{ steps.create_story.outputs.STORY_STATE }}"
-          TASK_ID="${{ steps.create_task.outputs.TASK_ID }}"
-          TASK_STATE="${{ steps.create_task.outputs.TASK_STATE }}"
-          WORK_DATE="${{ github.event.inputs.work_date }}"
-          printf '\nCreated Work Items (%s):\n- User Story ID: %s, State: %s\n- Task ID: %s, State: %s\n' \
-            "$WORK_DATE" "$STORY_ID" "$STORY_STATE" "$TASK_ID" "$TASK_STATE" >> README.md
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
           git add README.md
-          git diff --cached --quiet || git commit -m "Record created ADO work items for $WORK_DATE"
-          git push origin "${{ github.event.inputs.target_branch }}"
-
-      - name: Print Summary
-        run: |
-          echo "=== CREATED WORK ITEMS ==="
-          echo "User Story ID: ${{ steps.create_story.outputs.STORY_ID }}"
-          echo "User Story State: ${{ steps.create_story.outputs.STORY_STATE }}"
-          echo "Task ID: ${{ steps.create_task.outputs.TASK_ID }}"
-          echo "Task State: ${{ steps.create_task.outputs.TASK_STATE }}"
-          echo "========================="
+          git diff --cached --quiet || git commit -m "Update work items for ${{ steps.date.outputs.value }}"
+          git push origin main
