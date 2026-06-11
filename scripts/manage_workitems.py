@@ -11,10 +11,10 @@ Required env vars: ADO_PAT, WORK_DATE
 import os, sys, json, base64
 import urllib.request, urllib.error
 
-ORG     = "cubeforest3003"
-PROJECT = "powerBI-demo"
-API_VER = "7.1"
-EPIC_ID = 92   # parent Epic all User Stories roll up to
+ORG     = os.environ.get("ADO_ORG", "cubeforest3003")
+PROJECT = os.environ.get("ADO_PROJECT", "powerBI-demo")
+API_VER = os.environ.get("ADO_API_VER", "7.1")
+EPIC_ID = int(os.environ.get("ADO_EPIC_ID", "92"))   # parent Epic all User Stories roll up to
 
 COLS = ['date', 'type', 'title', 'description', 'assigned_to', 'status', 'id', 'parent_id']
 
@@ -123,7 +123,7 @@ def main():
     print(f"Found {len(pending)} pending item(s) for {work_date}.")
     story_id = None
 
-    # ── User Stories ──
+    # ── User Stories first (children may depend on the story_id) ──
     for item in (r for r in pending if r['type'] == 'User Story'):
         print(f"\n  Creating User Story: {item['title']}")
         parent_url = f"{_base()}/{EPIC_ID}"
@@ -140,23 +140,23 @@ def main():
         content = update_row(content, work_date, "User Story",
                              item['title'], final_state, story_id)
 
-    # ── Tasks ──
-    for item in (r for r in pending if r['type'] == 'Task'):
-        print(f"\n  Creating Task: {item['title']}")
+    # ── All other types: Task, Bug, Issue, … ──
+    for item in (r for r in pending if r['type'] != 'User Story'):
+        print(f"\n  Creating {item['type']}: {item['title']}")
         parent_url = (f"{_base()}/{story_id}" if story_id
                       else f"{_base()}/{EPIC_ID}")
-        resp = create_item("Task", item['title'], item['description'],
+        resp = create_item(item['type'], item['title'], item['description'],
                            item['assigned_to'], parent_url, pat)
         if not resp.get('id'):
             sys.exit(f"  FAILED: {resp.get('message', resp)}")
 
-        task_id = resp['id']
-        print(f"  Created ID {task_id} (New) → patching to Active...")
-        final_state = patch_state(task_id, "Active", pat)
-        print(f"  Task {task_id}: {final_state}")
+        child_id = resp['id']
+        print(f"  Created ID {child_id} (New) → patching to Active...")
+        final_state = patch_state(child_id, "Active", pat)
+        print(f"  {item['type']} {child_id}: {final_state}")
 
-        content = update_row(content, work_date, "Task",
-                             item['title'], final_state, task_id,
+        content = update_row(content, work_date, item['type'],
+                             item['title'], final_state, child_id,
                              str(story_id) if story_id else '')
 
     with open("README.md", 'w') as f:
