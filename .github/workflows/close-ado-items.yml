@@ -2,7 +2,7 @@ name: Close Azure DevOps Work Items
 
 on:
   schedule:
-    - cron: '30 21 * * *'   # 17:30 EDT (UTC-4) daily
+    - cron: '37 21 * * *'   # 17:37 EDT (UTC-4) daily; off-the-hour to avoid GitHub schedule congestion
   workflow_dispatch:
 
 concurrency:
