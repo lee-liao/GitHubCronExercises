@@ -39,11 +39,11 @@ The document is for claude to read and do routine Azure DevOps work item managem
 | 2026-06-15 | Task | Author the measure via `measure_operations` / TMDL | `DISTINCTCOUNT(D_INDIVIDUAL_CLIENT_KEY)`, PSL scope, flags... | cubeforest3003@gmail.com | Closed | 158 | 156 |
 | 2026-06-15 | Task | Confirm role-playing `Date (Accessed)` / `Date (Finished)` relationships | Reuse existing active `Date (Accessed)` relationship; no new tables | yuhuang.li.cloudalake@gmail.com | Closed | 159 | 156 |
 | 2026-06-15 | Bug | TMDL strictness — doc-comment placement / indentation rejected | Apply known TMDL rules: `///` must directly precede a declaration | cubeforest3003@gmail.com | Closed | 160 | 156 |
-| 2026-06-16 | User Story | Build the AM_Q4 report page (slicers + KPI) | As a report consumer, I need a dedicated AM_Q4 page with a fiscal-year slicer, a provider-org slicer, and a KPI card. | | Active | 166 | |
-| 2026-06-16 | Task | Add a new report page "AM_Q4" | Hand-edit `report.json` following the existing page patterns | cubeforest3003@gmail.com | Active | 167 | 166 |
-| 2026-06-16 | Task | Add Fiscal Year slicer + Provider Org (`group_name`) slicer | Bind slicers to the corresponding model fields | yuhuang.li.cloudalake@gmail.com | Active | 168 | 166 |
-| 2026-06-16 | Task | Add a KPI card bound to `[AM_Q4 - # IA or Intervention]` | Card should show ~1267 for Manitoulin Sudbury + FY 2022/23 | cubeforest3003@gmail.com | Active | 169 | 166 |
-| 2026-06-16 | Bug | PBIR `report.json` field-role / visual binding pitfalls | Match the field-role conventions already in the file | yuhuang.li.cloudalake@gmail.com | Active | 170 | 166 |
+| 2026-06-16 | User Story | Build the AM_Q4 report page (slicers + KPI) | As a report consumer, I need a dedicated AM_Q4 page with a fiscal-year slicer, a provider-org slicer, and a KPI card. | | Closed | 166 | |
+| 2026-06-16 | Task | Add a new report page "AM_Q4" | Hand-edit `report.json` following the existing page patterns | cubeforest3003@gmail.com | Closed | 167 | 166 |
+| 2026-06-16 | Task | Add Fiscal Year slicer + Provider Org (`group_name`) slicer | Bind slicers to the corresponding model fields | yuhuang.li.cloudalake@gmail.com | Closed | 168 | 166 |
+| 2026-06-16 | Task | Add a KPI card bound to `[AM_Q4 - # IA or Intervention]` | Card should show ~1267 for Manitoulin Sudbury + FY 2022/23 | cubeforest3003@gmail.com | Closed | 169 | 166 |
+| 2026-06-16 | Bug | PBIR `report.json` field-role / visual binding pitfalls | Match the field-role conventions already in the file | yuhuang.li.cloudalake@gmail.com | Closed | 170 | 166 |
 | 2026-06-17 | User Story | End-to-end validation, documentation & retrospective | As the modeling team, we need the change verified in Power BI Desktop, documented, and retrospected. | | pending | «story:day7» | |
 | 2026-06-17 | Task | Open `service_recommendation_pbip` in Desktop and verify | Confirm ~1267 Manitoulin FY2022; confirm slicers filter the card | yuhuang.li.cloudalake@gmail.com | pending | «task:day7-1» | «story:day7» |
 | 2026-06-17 | Task | Reconcile live measure value against Day-4 SQL one final time | Carry forward the SCD2 residual note from Bug «bug:day4-1» | cubeforest3003@gmail.com | pending | «task:day7-2» | «story:day7» |
